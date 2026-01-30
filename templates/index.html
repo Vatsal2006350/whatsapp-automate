@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Daily Message</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f1e8;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: #128c7e;
+            padding: 20px 24px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 0 16px;
+        }
+
+        .card {
+            background: #fffdf9;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: #128c7e;
+            margin-bottom: 16px;
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .field:last-child {
+            margin-bottom: 0;
+        }
+
+        .field label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 12px;
+            background: #f7f5f0;
+            border: 1px solid #e5e2d9;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+            outline: none;
+        }
+
+        .field input:focus {
+            border-color: #25d366;
+            background: #fff;
+        }
+
+        .field .hint {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .row .field {
+            flex: 1;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f7f5f0;
+            border-radius: 8px;
+            border: 1px solid #e5e2d9;
+        }
+
+        .toggle-row span {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .toggle {
+            width: 44px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .toggle.active {
+            background: #25d366;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .toggle.active::after {
+            transform: translateX(20px);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #25d366;
+            color: white;
+            width: 100%;
+            padding: 12px;
+        }
+
+        .btn-send {
+            background: #128c7e;
+            color: white;
+            width: 100%;
+            padding: 14px;
+            font-size: 15px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #555;
+            border: 1px solid #ddd;
+        }
+
+        .btn-outline:hover {
+            background: #f5f5f5;
+            opacity: 1;
+        }
+
+        .actions-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .actions-row .btn {
+            flex: 1;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 12px;
+        }
+
+        .status.running {
+            color: #128c7e;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: currentColor;
+            border-radius: 50%;
+        }
+
+        .status.running .status-dot {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .preview-box {
+            background: #ece5dd;
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .bubble {
+            background: #dcf8c6;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-top-left-radius: 0;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .bubble .time {
+            font-size: 10px;
+            color: #7d9979;
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+
+        .toast {
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        .spinner-dark {
+            border-color: #ddd;
+            border-top-color: #128c7e;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Daily Blessings</h1>
+        <p>WhatsApp Message Automation</p>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">Settings</div>
+            <div class="field">
+                <label>Recipients</label>
+                <input type="text" id="chatNames" value="{{ settings.chat_names }}" placeholder="Mama, Dad, Family Group">
+                <p class="hint">Separate with commas. Names must match exactly.</p>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label>Hour (0-23)</label>
+                    <input type="number" id="scheduleHour" value="{{ settings.schedule_hour }}" min="0" max="23">
+                </div>
+                <div class="field">
+                    <label>Minute</label>
+                    <input type="number" id="scheduleMinute" value="{{ settings.schedule_minute }}" min="0" max="59">
+                </div>
+            </div>
+            <div class="field">
+                <div class="toggle-row">
+                    <span>Run in background</span>
+                    <div class="toggle {% if settings.headless %}active{% endif %}" id="headlessToggle" onclick="toggleHeadless()"></div>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            <p class="hint" style="margin-top:8px; text-align:center;">After saving, restart scheduler to apply changes</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Actions</div>
+            <div class="status" id="schedulerStatus">
+                <span class="status-dot"></span>
+                <span>Scheduler off</span>
+            </div>
+            <button class="btn btn-send" id="sendNowBtn">
+                📤 Send Now
+            </button>
+            <div class="actions-row">
+                <button class="btn btn-outline" id="testMsgBtn">✨ Preview</button>
+                <button class="btn btn-outline" id="startBtn">▶ Start</button>
+                <button class="btn btn-outline" id="stopBtn" disabled>⏹ Stop</button>
+            </div>
+            <button class="btn btn-outline" style="width:100%; margin-top:8px;" id="viewLogBtn">📋 View Scheduler Log</button>
+            <pre id="logOutput" style="display:none; margin-top:12px; padding:12px; background:#f0f0f0; border-radius:8px; font-size:11px; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></pre>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Preview</div>
+            <div class="preview-box">
+                <div class="bubble" id="previewBubble">Click Preview to generate a message...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        function toggleHeadless() {
+            document.getElementById('headlessToggle').classList.toggle('active');
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function updateSchedulerUI(running) {
+            const status = document.getElementById('schedulerStatus');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+
+            if (running) {
+                status.className = 'status running';
+                status.innerHTML = '<span class="status-dot"></span><span>Scheduler running</span>';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                status.className = 'status';
+                status.innerHTML = '<span class="status-dot"></span><span>Scheduler off</span>';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        async function saveSettings() {
+            const data = {
+                chat_names: document.getElementById('chatNames').value,
+                schedule_hour: parseInt(document.getElementById('scheduleHour').value),
+                schedule_minute: parseInt(document.getElementById('scheduleMinute').value),
+                headless: document.getElementById('headlessToggle').classList.contains('active')
+            };
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                showToast(result.success ? '✓ Saved' : '✗ Error');
+            } catch(e) {
+                showToast('✗ Error');
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                const res = await fetch('/api/scheduler/status');
+                const data = await res.json();
+                updateSchedulerUI(data.running);
+            } catch(e) {}
+        }
+
+        async function sendNow() {
+            const btn = document.getElementById('sendNowBtn');
+            btn.innerHTML = '<span class="spinner"></span> Sending...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/send-now', {method: 'POST'});
+                const result = await res.json();
+                if (result.success) {
+                    showToast('✓ Sent!');
+                    const match = (result.output || '').match(/Message:\n-+\n([\s\S]*?)\n-+/);
+                    if (match) {
+                        document.getElementById('previewBubble').innerHTML =
+                            match[1].replace(/\n/g, '<br>') + '<div class="time">Just now ✓✓</div>';
+                    }
+                } else {
+                    showToast('✗ Failed');
+                }
+            } catch(e) {
+                showToast('✗ Error');
+            }
+            btn.innerHTML = '📤 Send Now';
+            btn.disabled = false;
+        }
+
+        async function testMessage() {
+            const btn = document.getElementById('testMsgBtn');
+            btn.innerHTML = '<span class="spinner spinner-dark"></span>';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/test-message', {method: 'POST'});
+                const result = await res.json();
+                if (result.success) {
+                    const lines = (result.output || '').split('\n');
+                    const start = lines.findIndex(l => l.includes('==='));
+                    const end = lines.findLastIndex(l => l.includes('==='));
+                    if (start !== -1 && end > start) {
+                        const msg = lines.slice(start+1, end).join('\n').trim();
+                        document.getElementById('previewBubble').innerHTML =
+                            msg.replace(/\n/g, '<br>') + '<div class="time">Preview</div>';
+                    }
+                    showToast('✓ Generated');
+                }
+            } catch(e) {
+                showToast('✗ Error');
+            }
+            btn.innerHTML = '✨ Preview';
+            btn.disabled = false;
+        }
+
+        async function startScheduler() {
+            const btn = document.getElementById('startBtn');
+            btn.innerHTML = '<span class="spinner spinner-dark"></span>';
+            try {
+                const res = await fetch('/api/scheduler/start', {method: 'POST'});
+                const result = await res.json();
+                if (result.success) {
+                    showToast('✓ Started');
+                    updateSchedulerUI(true);
+                }
+            } catch(e) {
+                showToast('✗ Error');
+            }
+            btn.innerHTML = '▶ Start';
+        }
+
+        async function stopScheduler() {
+            const btn = document.getElementById('stopBtn');
+            btn.innerHTML = '<span class="spinner spinner-dark"></span>';
+            try {
+                const res = await fetch('/api/scheduler/stop', {method: 'POST'});
+                const result = await res.json();
+                if (result.success) {
+                    showToast('✓ Stopped');
+                    updateSchedulerUI(false);
+                }
+            } catch(e) {
+                showToast('✗ Error');
+            }
+            btn.innerHTML = '⏹ Stop';
+        }
+
+        async function viewLog() {
+            const logOutput = document.getElementById('logOutput');
+            const btn = document.getElementById('viewLogBtn');
+
+            if (logOutput.style.display === 'none') {
+                try {
+                    const res = await fetch('/api/scheduler/log');
+                    const data = await res.json();
+                    logOutput.textContent = data.log || 'No log available';
+                    logOutput.style.display = 'block';
+                    btn.textContent = '📋 Hide Log';
+                } catch(e) {
+                    logOutput.textContent = 'Error loading log';
+                    logOutput.style.display = 'block';
+                }
+            } else {
+                logOutput.style.display = 'none';
+                btn.textContent = '📋 View Scheduler Log';
+            }
+        }
+
+        document.getElementById('sendNowBtn').addEventListener('click', sendNow);
+        document.getElementById('testMsgBtn').addEventListener('click', testMessage);
+        document.getElementById('startBtn').addEventListener('click', startScheduler);
+        document.getElementById('stopBtn').addEventListener('click', stopScheduler);
+        document.getElementById('viewLogBtn').addEventListener('click', viewLog);
+
+        checkStatus();
+        setInterval(checkStatus, 5000);
+    </script>
+</body>
+</html>

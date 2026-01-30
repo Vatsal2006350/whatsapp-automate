@@ -1,0 +1,21 @@
+[project]
+name = "whatsapp-automate"
+version = "1.0.0"
+description = "Automated daily WhatsApp message sender with AI-generated thoughts using Jac"
+requires-python = ">=3.10"
+dependencies = [
+    "jaclang>=0.9.0",
+    "google-genai>=1.0.0",
+    "playwright>=1.50.0",
+    "python-dotenv>=1.0.0",
+    "schedule>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
