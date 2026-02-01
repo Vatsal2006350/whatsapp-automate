@@ -192,6 +192,11 @@
             opacity: 1;
         }
 
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
         .actions-row {
             display: flex;
             gap: 8px;
@@ -211,8 +216,12 @@
             margin-bottom: 12px;
         }
 
-        .status.running {
+        .status.running, .status.connected {
             color: #128c7e;
+        }
+
+        .status.disconnected {
+            color: #dc3545;
         }
 
         .status-dot {
@@ -222,7 +231,7 @@
             border-radius: 50%;
         }
 
-        .status.running .status-dot {
+        .status.running .status-dot, .status.connected .status-dot {
             animation: pulse 1.5s infinite;
         }
 
@@ -293,6 +302,57 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* QR Code styles */
+        .qr-container {
+            text-align: center;
+            padding: 20px;
+            background: #f7f5f0;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .qr-container img {
+            max-width: 200px;
+            border-radius: 8px;
+            border: 4px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .qr-container p {
+            font-size: 12px;
+            color: #666;
+            margin-top: 12px;
+        }
+
+        .qr-placeholder {
+            width: 200px;
+            height: 200px;
+            background: #e5e2d9;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            color: #999;
+            font-size: 13px;
+        }
+
+        .connected-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #dcf8c6;
+            color: #128c7e;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .connected-badge svg {
+            width: 20px;
+            height: 20px;
+        }
     </style>
 </head>
 <body>
@@ -302,6 +362,38 @@
     </div>
 
     <div class="container">
+        <!-- WhatsApp Connection Card -->
+        <div class="card">
+            <div class="card-header">WhatsApp Connection</div>
+            <div class="status" id="waStatus">
+                <span class="status-dot"></span>
+                <span>Not connected</span>
+            </div>
+
+            <div id="qrSection" style="display: none;">
+                <div class="qr-container">
+                    <img id="qrImage" src="" alt="QR Code">
+                    <p>Scan this QR code with WhatsApp on your phone</p>
+                </div>
+                <button class="btn btn-outline" style="width:100%;" onclick="refreshQR()">Refresh QR Code</button>
+            </div>
+
+            <div id="connectedSection" style="display: none;">
+                <div class="qr-container">
+                    <div class="connected-badge">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        WhatsApp Connected
+                    </div>
+                </div>
+                <button class="btn btn-outline btn-danger" style="width:100%;" onclick="disconnectWhatsApp()">Disconnect</button>
+            </div>
+
+            <div id="connectSection">
+                <button class="btn btn-primary" id="connectBtn" onclick="connectWhatsApp()">Connect WhatsApp</button>
+                <p class="hint" style="margin-top:8px; text-align:center;">Click to show QR code for WhatsApp login</p>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header">Settings</div>
             <div class="field">
@@ -336,14 +428,14 @@
                 <span>Scheduler off</span>
             </div>
             <button class="btn btn-send" id="sendNowBtn">
-                📤 Send Now
+                Send Now
             </button>
             <div class="actions-row">
-                <button class="btn btn-outline" id="testMsgBtn">✨ Preview</button>
-                <button class="btn btn-outline" id="startBtn">▶ Start</button>
-                <button class="btn btn-outline" id="stopBtn" disabled>⏹ Stop</button>
+                <button class="btn btn-outline" id="testMsgBtn">Preview</button>
+                <button class="btn btn-outline" id="startBtn">Start</button>
+                <button class="btn btn-outline" id="stopBtn" disabled>Stop</button>
             </div>
-            <button class="btn btn-outline" style="width:100%; margin-top:8px;" id="viewLogBtn">📋 View Scheduler Log</button>
+            <button class="btn btn-outline" style="width:100%; margin-top:8px;" id="viewLogBtn">View Scheduler Log</button>
             <pre id="logOutput" style="display:none; margin-top:12px; padding:12px; background:#f0f0f0; border-radius:8px; font-size:11px; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></pre>
         </div>
 
@@ -358,6 +450,8 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
+        let qrRefreshInterval = null;
+
         function toggleHeadless() {
             document.getElementById('headlessToggle').classList.toggle('active');
         }
@@ -369,6 +463,109 @@
             toast.textContent = msg;
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
+        }
+
+        function updateWAStatus(connected) {
+            const status = document.getElementById('waStatus');
+            const qrSection = document.getElementById('qrSection');
+            const connectedSection = document.getElementById('connectedSection');
+            const connectSection = document.getElementById('connectSection');
+
+            if (connected) {
+                status.className = 'status connected';
+                status.innerHTML = '<span class="status-dot"></span><span>Connected</span>';
+                qrSection.style.display = 'none';
+                connectedSection.style.display = 'block';
+                connectSection.style.display = 'none';
+                if (qrRefreshInterval) {
+                    clearInterval(qrRefreshInterval);
+                    qrRefreshInterval = null;
+                }
+            } else {
+                status.className = 'status disconnected';
+                status.innerHTML = '<span class="status-dot"></span><span>Not connected</span>';
+                connectedSection.style.display = 'none';
+            }
+        }
+
+        async function connectWhatsApp() {
+            const btn = document.getElementById('connectBtn');
+            btn.innerHTML = '<span class="spinner"></span> Connecting...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/whatsapp/connect', {method: 'POST'});
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.logged_in) {
+                        updateWAStatus(true);
+                        showToast('Already connected!');
+                    } else {
+                        // Show QR code
+                        document.getElementById('qrSection').style.display = 'block';
+                        document.getElementById('connectSection').style.display = 'none';
+                        if (result.qr) {
+                            document.getElementById('qrImage').src = 'data:image/png;base64,' + result.qr;
+                        }
+                        showToast('Scan the QR code');
+                        // Start polling for login status
+                        startQRRefresh();
+                    }
+                } else {
+                    showToast('Failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch(e) {
+                showToast('Connection error');
+            }
+
+            btn.innerHTML = 'Connect WhatsApp';
+            btn.disabled = false;
+        }
+
+        function startQRRefresh() {
+            if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+            qrRefreshInterval = setInterval(refreshQR, 3000);
+        }
+
+        async function refreshQR() {
+            try {
+                const res = await fetch('/api/whatsapp/refresh', {method: 'POST'});
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.logged_in) {
+                        updateWAStatus(true);
+                        showToast('Connected!');
+                    } else if (result.qr) {
+                        document.getElementById('qrImage').src = 'data:image/png;base64,' + result.qr;
+                    }
+                }
+            } catch(e) {
+                console.error('QR refresh error:', e);
+            }
+        }
+
+        async function disconnectWhatsApp() {
+            try {
+                await fetch('/api/whatsapp/disconnect', {method: 'POST'});
+                updateWAStatus(false);
+                document.getElementById('qrSection').style.display = 'none';
+                document.getElementById('connectSection').style.display = 'block';
+                showToast('Disconnected');
+            } catch(e) {
+                showToast('Error disconnecting');
+            }
+        }
+
+        async function checkWAStatus() {
+            try {
+                const res = await fetch('/api/whatsapp/status');
+                const data = await res.json();
+                if (data.active && data.logged_in) {
+                    updateWAStatus(true);
+                }
+            } catch(e) {}
         }
 
         function updateSchedulerUI(running) {
@@ -403,9 +600,9 @@
                     body: JSON.stringify(data)
                 });
                 const result = await res.json();
-                showToast(result.success ? '✓ Saved' : '✗ Error');
+                showToast(result.success ? 'Saved' : 'Error');
             } catch(e) {
-                showToast('✗ Error');
+                showToast('Error');
             }
         }
 
@@ -426,19 +623,19 @@
                 const res = await fetch('/api/send-now', {method: 'POST'});
                 const result = await res.json();
                 if (result.success) {
-                    showToast('✓ Sent!');
+                    showToast('Sent!');
                     const match = (result.output || '').match(/Message:\n-+\n([\s\S]*?)\n-+/);
                     if (match) {
                         document.getElementById('previewBubble').innerHTML =
-                            match[1].replace(/\n/g, '<br>') + '<div class="time">Just now ✓✓</div>';
+                            match[1].replace(/\n/g, '<br>') + '<div class="time">Just now</div>';
                     }
                 } else {
-                    showToast('✗ Failed');
+                    showToast('Failed');
                 }
             } catch(e) {
-                showToast('✗ Error');
+                showToast('Error');
             }
-            btn.innerHTML = '📤 Send Now';
+            btn.innerHTML = 'Send Now';
             btn.disabled = false;
         }
 
@@ -459,12 +656,12 @@
                         document.getElementById('previewBubble').innerHTML =
                             msg.replace(/\n/g, '<br>') + '<div class="time">Preview</div>';
                     }
-                    showToast('✓ Generated');
+                    showToast('Generated');
                 }
             } catch(e) {
-                showToast('✗ Error');
+                showToast('Error');
             }
-            btn.innerHTML = '✨ Preview';
+            btn.innerHTML = 'Preview';
             btn.disabled = false;
         }
 
@@ -475,13 +672,13 @@
                 const res = await fetch('/api/scheduler/start', {method: 'POST'});
                 const result = await res.json();
                 if (result.success) {
-                    showToast('✓ Started');
+                    showToast('Started');
                     updateSchedulerUI(true);
                 }
             } catch(e) {
-                showToast('✗ Error');
+                showToast('Error');
             }
-            btn.innerHTML = '▶ Start';
+            btn.innerHTML = 'Start';
         }
 
         async function stopScheduler() {
@@ -491,13 +688,13 @@
                 const res = await fetch('/api/scheduler/stop', {method: 'POST'});
                 const result = await res.json();
                 if (result.success) {
-                    showToast('✓ Stopped');
+                    showToast('Stopped');
                     updateSchedulerUI(false);
                 }
             } catch(e) {
-                showToast('✗ Error');
+                showToast('Error');
             }
-            btn.innerHTML = '⏹ Stop';
+            btn.innerHTML = 'Stop';
         }
 
         async function viewLog() {
@@ -510,14 +707,14 @@
                     const data = await res.json();
                     logOutput.textContent = data.log || 'No log available';
                     logOutput.style.display = 'block';
-                    btn.textContent = '📋 Hide Log';
+                    btn.textContent = 'Hide Log';
                 } catch(e) {
                     logOutput.textContent = 'Error loading log';
                     logOutput.style.display = 'block';
                 }
             } else {
                 logOutput.style.display = 'none';
-                btn.textContent = '📋 View Scheduler Log';
+                btn.textContent = 'View Scheduler Log';
             }
         }
 
@@ -528,6 +725,7 @@
         document.getElementById('viewLogBtn').addEventListener('click', viewLog);
 
         checkStatus();
+        checkWAStatus();
         setInterval(checkStatus, 5000);
     </script>
 </body>

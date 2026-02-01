@@ -6,6 +6,14 @@ import signal;
 import from flask { Flask, render_template, request, jsonify, make_response }
 import from dotenv { load_dotenv }
 
+import from src.whatsapp_login {
+    start_login_session,
+    refresh_qr,
+    get_login_status,
+    close_login_session,
+    get_qr_base64
+}
+
 
 def get_env_file() -> str {
     return os.path.join(os.path.dirname(__file__), ".env");
@@ -113,13 +121,13 @@ def api_send_now() {
             cwd=os.path.dirname(__file__),
             timeout=300
         );
-        
+
         print("--- Subprocess STDOUT ---");
         print(result.stdout);
         print("--- Subprocess STDERR ---");
         print(result.stderr);
         print("-------------------------");
-        
+
         return jsonify({
             "success": result.returncode == 0,
             "output": result.stdout,
@@ -240,6 +248,61 @@ def api_scheduler_status() {
 }
 
 
+# WhatsApp Connection APIs
+def api_whatsapp_connect() {
+    # Start WhatsApp login session and get QR code
+    load_dotenv(override=True);
+    profile_dir = os.getenv("WA_PROFILE_DIR", "./wa-profile").strip("'\"");
+
+    result = start_login_session(profile_dir=profile_dir, headless=True);
+
+    if result.get("success") {
+        if result.get("logged_in") {
+            return jsonify({"success": True, "logged_in": True, "message": "Already connected!"});
+        } else {
+            qr_data = get_qr_base64();
+            return jsonify({"success": True, "logged_in": False, "qr": qr_data});
+        }
+    }
+
+    resp = make_response(jsonify({"error": result.get("error", "Failed to start session")}));
+    resp.status_code = 500;
+    return resp;
+}
+
+
+def api_whatsapp_refresh_qr() {
+    # Refresh QR code and check login status
+    result = refresh_qr();
+
+    if result.get("success") {
+        if result.get("logged_in") {
+            return jsonify({"success": True, "logged_in": True});
+        } else {
+            return jsonify({"success": True, "logged_in": False, "qr": result.get("qr", "")});
+        }
+    }
+
+    resp = make_response(jsonify({"error": result.get("error", "Failed to refresh")}));
+    resp.status_code = 500;
+    return resp;
+}
+
+
+def api_whatsapp_status() {
+    # Get WhatsApp connection status
+    result = get_login_status();
+    return jsonify(result);
+}
+
+
+def api_whatsapp_disconnect() {
+    # Disconnect WhatsApp session
+    close_login_session();
+    return jsonify({"success": True, "message": "Disconnected"});
+}
+
+
 def create_app() -> object {
     load_dotenv();
     flask_app = Flask(__name__);
@@ -255,6 +318,12 @@ def create_app() -> object {
     flask_app.add_url_rule("/api/scheduler/status", "api_scheduler_status", api_scheduler_status, methods=["GET"]);
     flask_app.add_url_rule("/api/scheduler/log", "api_scheduler_log", api_scheduler_log, methods=["GET"]);
 
+    # WhatsApp connection routes
+    flask_app.add_url_rule("/api/whatsapp/connect", "api_whatsapp_connect", api_whatsapp_connect, methods=["POST"]);
+    flask_app.add_url_rule("/api/whatsapp/refresh", "api_whatsapp_refresh_qr", api_whatsapp_refresh_qr, methods=["POST"]);
+    flask_app.add_url_rule("/api/whatsapp/status", "api_whatsapp_status", api_whatsapp_status, methods=["GET"]);
+    flask_app.add_url_rule("/api/whatsapp/disconnect", "api_whatsapp_disconnect", api_whatsapp_disconnect, methods=["POST"]);
+
     return flask_app;
 }
 
@@ -267,5 +336,5 @@ with entry {
     print("Press Ctrl+C to stop\n");
 
     app = create_app();
-    app.run(debug=True, port=5000);
+    app.run(debug=True, port=5001, host='0.0.0.0');
 }
