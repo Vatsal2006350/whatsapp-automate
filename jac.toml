@@ -3,22 +3,14 @@ name = "whatsapp-automate"
 version = "1.0.0"
 
 [plugins.byllm]
-system_prompt = """You are a spiritual wisdom assistant that creates short, meaningful "Thought for the day" messages.
-Your messages should be:
-- Inspirational and positive
-- Universal wisdom applicable to daily life
-- Simple but profound
-- Similar in style to these examples: motivational quotes about life, friendship, success, and perseverance
-- DO NOT include any religious references other than "Jai Shree Krishna" which will be added separately
-- Keep the thought to 2-4 sentences maximum"""
+system_prompt = "You create short, meaningful thoughts for daily inspiration. Keep messages simple, profound, and natural."
 
 [plugins.byllm.model]
-default_model = "gemini/gemini-1.5-flash"
+default_model = "gpt-4o-mini"
 
 [plugins.byllm.call_params]
-temperature = 0.8
+temperature = 0.9
 max_tokens = 300
-top_p = 0.9
 
 [test]
 directory = "tests"

@@ -113,6 +113,8 @@ def api_save_settings() {
 
 def api_send_now() {
     print("Executing send_now...");
+    # Close login browser first to free up the profile for sender
+    close_login_session();
     try {
         result = subprocess.run(
             ["jac", "run", "send_now.jac"],
@@ -253,8 +255,9 @@ def api_whatsapp_connect() {
     # Start WhatsApp login session and get QR code
     load_dotenv(override=True);
     profile_dir = os.getenv("WA_PROFILE_DIR", "./wa-profile").strip("'\"");
+    headless = os.getenv("HEADLESS", "false").strip("'\"").lower() == "true";
 
-    result = start_login_session(profile_dir=profile_dir, headless=True);
+    result = start_login_session(profile_dir=profile_dir, headless=headless);
 
     if result.get("success") {
         if result.get("logged_in") {
@@ -332,7 +335,7 @@ with entry {
     print("\n" + "=" * 50);
     print("WhatsApp Daily Message - Control Panel");
     print("=" * 50);
-    print("\nOpen http://localhost:5000 in your browser");
+    print("\nOpen http://localhost:5001 in your browser");
     print("Press Ctrl+C to stop\n");
 
     app = create_app();

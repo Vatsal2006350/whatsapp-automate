@@ -39,8 +39,25 @@ obj WhatsAppLoginManager {
             self.browser = self.playwright_instance.chromium.launch_persistent_context(
                 abs_profile,
                 headless=self.headless,
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage"]
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-dev-shm-usage",
+                    "--disable-infobars",
+                    "--disable-background-timer-throttling",
+                    "--disable-popup-blocking",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-renderer-backgrounding",
+                    "--disable-window-activation",
+                    "--disable-focus-on-load",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--window-size=1920,1080"
+                ],
+                viewport={"width": 1920, "height": 1080},
+                ignore_https_errors=True
             );
 
             if len(self.browser.pages) > 0 {
@@ -49,10 +66,50 @@ obj WhatsAppLoginManager {
                 self.page = self.browser.new_page();
             }
 
+            # Anti-detection: Remove webdriver property before navigation
+            self.page.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en']
+                });
+                window.chrome = { runtime: {} };
+            """);
+
             self.page.goto("https://web.whatsapp.com", wait_until="domcontentloaded");
 
-            # Wait a bit for page to load
-            self.page.wait_for_timeout(3000);
+            # Wait for page to fully load - WhatsApp takes time to render QR
+            print("Waiting for WhatsApp page to load...");
+            self.page.wait_for_timeout(5000);
+
+            # Wait specifically for the QR code canvas to appear and be visible
+            try {
+                print("Looking for QR code element...");
+                qr_wait_selectors = [
+                    'canvas[aria-label="Scan this QR code to link a device!"]',
+                    'canvas[aria-label="Scan me!"]',
+                    'div[data-testid="qrcode"] canvas',
+                    'canvas'
+                ];
+                for selector in qr_wait_selectors {
+                    try {
+                        element = self.page.locator(selector).first;
+                        element.wait_for(state="visible", timeout=30000);
+                        print(f"Found visible element: {selector}");
+                        # Extra wait for canvas to actually render content
+                        self.page.wait_for_timeout(2000);
+                        break;
+                    } except Exception {
+                        continue;
+                    }
+                }
+            } except Exception as e {
+                print(f"QR wait error: {e}");
+            }
 
             # Check if already logged in
             if self.check_logged_in() {
@@ -118,23 +175,28 @@ obj WhatsAppLoginManager {
 
             for selector in qr_selectors {
                 try {
+                    print(f"Trying selector: {selector}");
                     qr_element = self.page.locator(selector).first;
-                    qr_element.wait_for(timeout=2000);
+                    qr_element.wait_for(timeout=5000);
                     qr_element.screenshot(path=self.qr_screenshot_path);
                     print(f"QR captured with selector: {selector}");
                     return True;
-                } except Exception {
+                } except Exception as e {
+                    print(f"Selector {selector} failed: {e}");
                     continue;
                 }
             }
 
             # Fallback: screenshot the whole page
-            self.page.screenshot(path=self.qr_screenshot_path);
-            print("Full page screenshot captured");
+            print("All selectors failed, taking full page screenshot");
+            self.page.screenshot(path=self.qr_screenshot_path, timeout=60000);
+            print(f"Full page screenshot saved to: {self.qr_screenshot_path}");
             return True;
 
         } except Exception as e {
             print(f"Error capturing QR: {e}");
+            import traceback;
+            traceback.print_exc();
             return False;
         }
     }
